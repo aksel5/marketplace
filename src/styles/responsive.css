@@ -1,0 +1,235 @@
+/* Enhanced responsive styles with performance optimizations */
+
+/* Base responsive typography system */
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 475px) {
+  html {
+    font-size: 13px;
+  }
+}
+
+/* Enhanced touch interactions */
+.touch-enhanced {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.touch-enhanced:active {
+  transform: scale(0.97);
+  transition: transform 0.1s ease;
+}
+
+/* Optimized scrolling */
+.scroll-optimized {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+}
+
+.scroll-optimized::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scroll-optimized::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.scroll-optimized::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.scroll-optimized::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* Performance optimizations */
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-opacity {
+  will-change: opacity;
+}
+
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .contrast-enhanced {
+    border: 2px solid currentColor;
+  }
+}
+
+/* Forced colors mode */
+@media (forced-colors: active) {
+  .forced-colors-safe {
+    forced-color-adjust: none;
+  }
+}
+
+/* Mobile-specific optimizations */
+.mobile-optimized {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Battery saving mode */
+@media (prefers-reduced-data: reduce) {
+  .data-saving {
+    background-image: none !important;
+    animation: none !important;
+  }
+  
+  .data-saving img {
+    display: none;
+  }
+  
+  .data-saving::before {
+    content: "📱 Data saving mode active";
+    display: block;
+    padding: 1rem;
+    background: #f0f0f0;
+    border-radius: 8px;
+    text-align: center;
+    color: #666;
+  }
+}
+
+/* Print optimization */
+@media print {
+  .print-optimized {
+    break-inside: avoid;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Safe area insets with fallback */
+.safe-area-inset-top {
+  padding-top: constant(safe-area-inset-top);
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-inset-bottom {
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-inset-left {
+  padding-left: constant(safe-area-inset-left);
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-area-inset-right {
+  padding-right: constant(safe-area-inset-right);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Dark mode transitions */
+@media (prefers-color-scheme: dark) {
+  .dark-mode-smooth {
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+/* Focus visible polyfill */
+.focus-visible:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.focus-visible:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+/* Loading states */
+.loading-skeleton {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 25%,
+    #e0e0e0 50%,
+    #f0f0f0 75%
+  );
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Hardware acceleration */
+.hardware-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Responsive spacing system */
+.space-responsive {
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+}
+
+@media (max-width: 768px) {
+  .space-responsive {
+    --space-xs: 0.2rem;
+    --space-sm: 0.4rem;
+    --space-md: 0.8rem;
+    --space-lg: 1.2rem;
+    --space-xl: 1.6rem;
+  }
+}
+
+@media (max-width: 475px) {
+  .space-responsive {
+    --space-xs: 0.15rem;
+    --space-sm: 0.3rem;
+    --space-md: 0.6rem;
+    --space-lg: 1rem;
+    --space-xl: 1.4rem;
+  }
+}

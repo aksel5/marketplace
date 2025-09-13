@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Mobile-specific styles */
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    font-size: 16px;
+  }
+  
+  body {
+    @apply overscroll-none;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+/* Custom utilities for mobile */
+@layer utilities {
+  .safe-area-padding {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  .safe-area-margin {
+    margin-left: env(safe-area-inset-left);
+    margin-right: env(safe-area-inset-right);
+  }
+  
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Form enhancements for mobile */
+@layer components {
+  .touch-form input,
+  .touch-form select,
+  .touch-form textarea {
+    @apply text-base;
+    min-height: 44px;
+  }
+  
+  .touch-form button {
+    @apply touch-target;
+  }
+}
+
+/* Prevent zoom on input focus for mobile */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+  
+  /* Enhanced touch interactions */
+  button, .btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 12px 16px;
+  }
+  
+  /* Improved scrolling */
+  .scroll-touch {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Tablet specific styles */
+@media screen and (min-width: 769px) and (max-width: 1024px) {
+  .container {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+/* High DPI devices */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  img {
+    image-rendering: -webkit-optimize-contrast;
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
