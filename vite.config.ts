@@ -123,11 +123,28 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
-    strictPort: true
+    strictPort: true,
+    headers: {
+      'X-Content-Type-Options': 'nosniff'
+    }
   },
   preview: {
     host: true,
     port: 5173,
-    strictPort: true
+    strictPort: true,
+    headers: {
+      'X-Content-Type-Options': 'nosniff'
+    }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          supabase: ['@supabase/supabase-js'],
+          utils: ['lucide-react']
+        }
+      }
+    }
   }
 })
