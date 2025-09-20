@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase, refreshSchemaCache } from '../lib/supabase'
+import { supabase, ensureSchemaReady } from '../lib/supabase'
 
 export interface Product {
   id?: string
@@ -19,8 +19,8 @@ export const useProducts = () => {
     setError(null)
     
     try {
-      // Refresh schema cache before operation
-      await refreshSchemaCache()
+      // Ensure schema is ready before operation
+      await ensureSchemaReady()
       
       const { data, error: supabaseError } = await supabase
         .from('products')
@@ -34,13 +34,16 @@ export const useProducts = () => {
         .single()
 
       if (supabaseError) {
+        console.error('Supabase error:', supabaseError)
         throw new Error(supabaseError.message)
       }
 
       return data
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create product')
-      throw err
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create product'
+      setError(errorMessage)
+      console.error('Product creation error:', err)
+      throw new Error(errorMessage)
     } finally {
       setLoading(false)
     }
