@@ -37,25 +37,38 @@ export const refreshSchemaCache = async () => {
 }
 
 // Enhanced function to ensure schema is ready before operations
-export const ensureSchemaReady = async (maxRetries = 3) => {
+export const ensureSchemaReady = async (maxRetries = 5) => {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`Refreshing schema cache (attempt ${attempt}/${maxRetries})...`)
       await refreshSchemaCache()
       
-      // Verify the video_url column exists
-      const { data, error } = await supabase
-        .from('products')
-        .select('video_url')
-        .limit(1)
-        
-      if (error) {
-        if (error.message.includes('video_url') || error.message.includes('column')) {
-          console.log(`Video column not yet available (attempt ${attempt})`)
-          await new Promise(resolve => setTimeout(resolve, 1000)) // Wait 1 second
-          continue
+      // Verify the video_url column exists by checking information_schema
+      const { data: columnCheck, error: columnError } = await supabase
+        .rpc('check_column_exists', {
+          table_name: 'products',
+          column_name: 'video_url'
+        })
+      
+      if (columnError) {
+        // Fallback method if RPC doesn't exist
+        const { data, error: queryError } = await supabase
+          .from('products')
+          .select('video_url')
+          .limit(1)
+          
+        if (queryError) {
+          if (queryError.message.includes('video_url') || queryError.message.includes('column')) {
+            console.log(`Video column not yet available (attempt ${attempt})`)
+            await new Promise(resolve => setTimeout(resolve, 1500)) // Wait 1.5 seconds
+            continue
+          }
+          throw queryError
         }
-        throw error
+      } else if (columnCheck && columnCheck.length > 0 && !columnCheck[0].exists) {
+        console.log(`Video column not yet available (attempt ${attempt})`)
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        continue
       }
       
       console.log('Schema verified successfully - video_url column is available')
@@ -70,3 +83,40 @@ export const ensureSchemaReady = async (maxRetries = 3) => {
     }
   }
 }
+
+// Create RPC function if it doesn't exist
+export const createCheckColumnFunction = async () => {
+  try {
+    const { error } = await supabase.rpc('check_column_exists', {
+      table_name: 'products',
+      column_name: 'video_url'
+    })
+    
+    if (error && error.message.includes('function')) {
+      // Function doesn't exist, create it
+      const { error: createError } = await supabase.rpc(`
+        CREATE OR REPLACE FUNCTION check_column_exists(table_name text, column_name text)
+        RETURNS TABLE(exists boolean)
+        LANGUAGE sql
+        AS $$
+          SELECT EXISTS (
+            SELECT 1 
+            FROM information_schema.columns 
+            WHERE table_name = $1 AND column_name = $2
+          )
+        $$;
+      `)
+      
+      if (createError) {
+        console.warn('Could not create check_column_exists function:', createError)
+      } else {
+        console.log('Created check_column_exists function')
+      }
+    }
+  } catch (error) {
+    console.warn('Error checking/creating RPC function:', error)
+  }
+}
+
+// Initialize schema check on module load
+createCheckColumnFunction()
