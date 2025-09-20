@@ -120,3 +120,86 @@ export const createCheckColumnFunction = async () => {
 
 // Initialize schema check on module load
 createCheckColumnFunction()
+
+// Video upload function with 15s max duration validation
+export const uploadProductVideo = async (videoBlob: Blob, productId: string): Promise<string> => {
+  try {
+    // Validate video duration (15s max)
+    const videoUrl = URL.createObjectURL(videoBlob)
+    const video = document.createElement('video')
+    
+    const durationCheck = new Promise<number>((resolve, reject) => {
+      video.addEventListener('loadedmetadata', () => {
+        resolve(video.duration)
+      })
+      video.addEventListener('error', () => {
+        reject(new Error('Failed to load video for duration check'))
+      })
+      video.src = videoUrl
+    })
+
+    const duration = await durationCheck
+    URL.revokeObjectURL(videoUrl)
+
+    if (duration > 15) {
+      throw new Error(`Video duration (${duration.toFixed(1)}s) exceeds 15 second limit`)
+    }
+
+    // Upload to Supabase Storage
+    const fileName = `${productId}/${Date.now()}.mp4`
+    const { data, error } = await supabase.storage
+      .from('product-videos')
+      .upload(fileName, videoBlob, {
+        contentType: 'video/mp4',
+        upsert: true
+      })
+
+    if (error) {
+      throw new Error(`Video upload failed: ${error.message}`)
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('product-videos')
+      .getPublicUrl(fileName)
+
+    return urlData.publicUrl
+
+  } catch (error) {
+    console.error('Video upload error:', error)
+    throw error
+  }
+}
+
+// Create storage bucket if it doesn't exist
+export const ensureVideoBucketExists = async () => {
+  try {
+    const { data: buckets, error } = await supabase.storage.listBuckets()
+    
+    if (error) {
+      console.warn('Could not list buckets:', error)
+      return
+    }
+
+    const videoBucketExists = buckets?.some(bucket => bucket.name === 'product-videos')
+    
+    if (!videoBucketExists) {
+      const { error: createError } = await supabase.storage.createBucket('product-videos', {
+        public: true,
+        fileSizeLimit: 50 * 1024 * 1024, // 50MB
+        allowedMimeTypes: ['video/mp4', 'video/quicktime', 'video/x-msvideo']
+      })
+      
+      if (createError) {
+        console.warn('Could not create video bucket:', createError)
+      } else {
+        console.log('Created product-videos storage bucket')
+      }
+    }
+  } catch (error) {
+    console.warn('Error ensuring video bucket exists:', error)
+  }
+}
+
+// Initialize storage bucket check
+ensureVideoBucketExists()
