@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Plus, ShoppingBag, User, Search, Filter, Menu } from 'lucide-react'
 import AuthModal from '../components/AuthModal'
 import ProductCard from '../components/ProductCard'
@@ -16,17 +16,17 @@ export default function MarketplacePage() {
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   
   const { user, loading: authLoading } = useAuth()
-  const { products, categories, loading: marketLoading, createProduct, fetchProducts } = useMarketplace()
+  const { products, categories, loading: marketLoading, createProduct, createOrder, fetchProducts } = useMarketplace()
   const isMobile = useMobile()
 
   const handleCreateProduct = async (productData: any) => {
-    try {
-      await createProduct(productData)
+    const { error } = await createProduct(productData)
+    if (error) {
+      setNotification({ type: 'error', message: `Failed to create product: ${error}` })
+    } else {
       setNotification({ type: 'success', message: 'Product listed successfully!' })
       setShowProductForm(false)
       await fetchProducts()
-    } catch (error: any) {
-      setNotification({ type: 'error', message: `Failed to create product: ${error.message}` })
     }
   }
 
@@ -37,8 +37,13 @@ export default function MarketplacePage() {
     }
 
     try {
-      setNotification({ type: 'success', message: 'Order created successfully! The seller will contact you soon.' })
-      await fetchProducts()
+      const { error } = await createOrder(productId)
+      if (error) {
+        setNotification({ type: 'error', message: `Error creating order: ${error}` })
+      } else {
+        setNotification({ type: 'success', message: 'Order created successfully! The seller will contact you soon.' })
+        await fetchProducts()
+      }
     } catch (error) {
       setNotification({ type: 'error', message: 'Error creating order' })
     }
