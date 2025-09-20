@@ -1,211 +1,235 @@
-import React, { useState, useRef } from 'react';
-import { Upload, Video, X, RotateCcw, AlertCircle } from 'lucide-react';
-import { useVideoCompression } from '../hooks/useVideoCompression';
+import React, { useRef, useState } from 'react'
+import { X, Video, AlertCircle, CheckCircle } from 'lucide-react'
 
 interface VideoUploadProps {
-  onVideoUpload: (videoBlob: Blob) => void;
-  maxDuration?: number;
-  maxSize?: number;
+  onVideoUpload: (videoBlob: Blob) => void
+  maxDuration?: number
+  onError?: (error: string) => void
 }
 
 export default function VideoUpload({ 
   onVideoUpload, 
-  maxDuration = 15,
-  maxSize = 50 * 1024 * 1024 // 50MB
+  maxDuration = 15, 
+  onError 
 }: VideoUploadProps) {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string>('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string>('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const { createScrollingVideo, isLoading, error: compressionError } = useVideoCompression();
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [videoUrl, setVideoUrl] = useState<string>('')
+  const [duration, setDuration] = useState<number>(0)
+  const [error, setError] = useState<string>('')
+  const [isRecording, setIsRecording] = useState(false)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const recordedChunksRef = useRef<Blob[]>([])
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setError('');
-
-    // Validate file type
+  const handleFileSelect = (file: File) => {
     if (!file.type.startsWith('video/')) {
-      setError('Please select a video file (MP4, MOV, AVI)');
-      return;
+      const errorMsg = 'Please select a video file'
+      setError(errorMsg)
+      onError?.(errorMsg)
+      return
     }
 
-    // Validate file size
-    if (file.size > maxSize) {
-      setError(`File size must be less than ${maxSize / 1024 / 1024}MB`);
-      return;
+    const url = URL.createObjectURL(file)
+    setSelectedFile(file)
+    setVideoUrl(url)
+    setError('')
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      handleFileSelect(file)
     }
+  }
 
-    setSelectedFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
-  };
+  const handleDurationCheck = () => {
+    if (videoRef.current) {
+      const videoDuration = videoRef.current.duration
+      setDuration(videoDuration)
+      
+      if (videoDuration > maxDuration) {
+        const errorMsg = `Video exceeds maximum duration of ${maxDuration} seconds`
+        setError(errorMsg)
+        onError?.(errorMsg)
+      } else {
+        setError('')
+      }
+    }
+  }
 
-  const handleCompressAndUpload = async () => {
-    if (!selectedFile) return;
-
-    setIsProcessing(true);
-    setError('');
+  const handleUpload = async () => {
+    if (!selectedFile) return
 
     try {
-      console.log('Starting video compression for file:', selectedFile.name);
-      
-      const result = await createScrollingVideo(selectedFile, {
-        maxDuration,
-        width: 640,
-        height: 360
-      });
-
-      console.log('Compression result:', result);
-
-      if (result.success && result.compressedVideo) {
-        console.log('Compression successful, uploading...');
-        onVideoUpload(result.compressedVideo);
-        setError('');
-      } else {
-        const errorMsg = result.error || 'Failed to compress video';
-        setError(errorMsg);
-        console.error('Compression failed:', errorMsg);
+      // Check duration again before upload
+      if (duration > maxDuration) {
+        throw new Error(`Video exceeds maximum duration of ${maxDuration} seconds`)
       }
-    } catch (err: any) {
-      const errorMsg = err.message || 'An error occurred during compression';
-      setError(errorMsg);
-      console.error('Compression error:', err);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
-  const handleRemoveFile = () => {
-    setSelectedFile(null);
-    setPreviewUrl('');
-    setError('');
+      // Convert file to blob for upload
+      const videoBlob = new Blob([selectedFile], { type: selectedFile.type })
+      onVideoUpload(videoBlob)
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to process video'
+      setError(errorMsg)
+      onError?.(errorMsg)
+    }
+  }
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: true, 
+        audio: true 
+      })
+      
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'video/webm;codecs=vp9,opus'
+      })
+      
+      mediaRecorderRef.current = mediaRecorder
+      recordedChunksRef.current = []
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordedChunksRef.current.push(event.data)
+        }
+      }
+      
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' })
+        const file = new File([blob], 'recorded-video.webm', { type: 'video/webm' })
+        handleFileSelect(file)
+        stream.getTracks().forEach(track => track.stop())
+      }
+      
+      mediaRecorder.start()
+      setIsRecording(true)
+      
+      // Auto-stop after max duration
+      setTimeout(() => {
+        if (mediaRecorderRef.current?.state === 'recording') {
+          mediaRecorderRef.current.stop()
+          setIsRecording(false)
+        }
+      }, maxDuration * 1000)
+      
+    } catch (err) {
+      const errorMsg = 'Failed to access camera. Please check permissions.'
+      setError(errorMsg)
+      onError?.(errorMsg)
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current?.state === 'recording') {
+      mediaRecorderRef.current.stop()
+      setIsRecording(false)
+    }
+  }
+
+  const resetSelection = () => {
+    setSelectedFile(null)
+    setVideoUrl('')
+    setDuration(0)
+    setError('')
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = ''
     }
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  // Show compression errors from the hook
-  React.useEffect(() => {
-    if (compressionError) {
-      setError(compressionError);
-    }
-  }, [compressionError]);
+  }
 
   return (
     <div className="space-y-4">
-      {/* File Input */}
-      {!selectedFile && (
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-purple-500 transition-colors">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="video/*"
-            onChange={handleFileSelect}
-            className="hidden"
-            id="video-upload"
-          />
-          <label
-            htmlFor="video-upload"
-            className="cursor-pointer flex flex-col items-center space-y-3"
-          >
-            <Upload className="w-12 h-12 text-gray-400" />
-            <div>
-              <p className="text-sm font-medium text-gray-900">
-                Click to upload video
-              </p>
-              <p className="text-xs text-gray-500">
-                MP4, MOV, AVI up to {maxSize / 1024 / 1024}MB
-              </p>
+      {/* File Upload */}
+      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="video/*"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        
+        {!selectedFile ? (
+          <div className="space-y-3">
+            <Video className="w-12 h-12 text-gray-400 mx-auto" />
+            <p className="text-sm text-gray-600">
+              Select a video file or record directly
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+              >
+                Choose File
+              </button>
+              <button
+                type="button"
+                onClick={isRecording ? stopRecording : startRecording}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  isRecording 
+                    ? 'bg-red-600 hover:bg-red-700 text-white' 
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+              >
+                {isRecording ? 'Stop Recording' : 'Record Video'}
+              </button>
             </div>
-          </label>
-        </div>
-      )}
-
-      {/* Preview */}
-      {previewUrl && (
-        <div className="relative">
-          <video
-            src={previewUrl}
-            controls
-            className="w-full rounded-lg border border-gray-200"
-            style={{ maxHeight: '300px' }}
-          />
-          <div className="mt-2 flex items-center justify-between text-sm text-gray-600">
-            <span className="truncate max-w-xs">{selectedFile?.name}</span>
-            <span>{formatFileSize(selectedFile?.size || 0)}</span>
+            <p className="text-xs text-gray-500">
+              Maximum duration: {maxDuration} seconds
+            </p>
           </div>
-          
-          <button
-            onClick={handleRemoveFile}
-            className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 text-red-600" />
-            <p className="text-red-800 text-sm">{error}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Action Buttons */}
-      {selectedFile && (
-        <div className="flex space-x-3">
-          <button
-            onClick={handleCompressAndUpload}
-            disabled={isProcessing || isLoading}
-            className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          >
-            {isProcessing || isLoading ? (
-              <div className="flex items-center justify-center space-x-2">
-                <RotateCcw className="w-4 h-4 animate-spin" />
-                <span>Compressing...</span>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center space-x-2">
-                <Video className="w-4 h-4" />
-                <span>Compress & Upload ({maxDuration}s)</span>
+        ) : (
+          <div className="space-y-3">
+            <video
+              ref={videoRef}
+              src={videoUrl}
+              controls
+              onLoadedMetadata={handleDurationCheck}
+              className="w-full max-h-48 rounded-lg mx-auto"
+            />
+            
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">
+                Duration: {duration.toFixed(1)}s / {maxDuration}s
+              </span>
+              
+              {duration > 0 && duration <= maxDuration && (
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              )}
+            </div>
+            
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <div className="flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 text-red-600" />
+                  <p className="text-red-800 text-sm">{error}</p>
+                </div>
               </div>
             )}
-          </button>
-          
-          <button
-            onClick={handleRemoveFile}
-            className="px-4 py-2 border border-gray-300 text-gray-600 hover:text-gray-800 rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      )}
-
-      {/* Instructions */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-blue-900 mb-2">Video Requirements:</h4>
-        <ul className="text-xs text-blue-800 space-y-1">
-          <li>• Maximum duration: {maxDuration} seconds</li>
-          <li>• Maximum size: {maxSize / 1024 / 1024}MB</li>
-          <li>• Supported formats: MP4, MOV, AVI</li>
-          <li>• Video will be compressed to optimal size</li>
-          <li>• Output: 640x360 resolution, 15 seconds max</li>
-        </ul>
+            
+            <div className="flex gap-3 justify-center">
+              <button
+                type="button"
+                onClick={resetSelection}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+              >
+                Change Video
+              </button>
+              <button
+                type="button"
+                onClick={handleUpload}
+                disabled={!!error || duration === 0 || duration > maxDuration}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+              >
+                Use This Video
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
-  );
+  )
 }

@@ -3,13 +3,14 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables')
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// Utility to refresh schema cache
+// Simple schema cache refresh function
 export const refreshSchemaCache = async () => {
-  try {
-    await supabase.rpc('refresh_schema_cache')
-  } catch (error) {
-    console.warn('Schema cache refresh not available, proceeding without cache refresh')
-  }
+  // This is a no-op in the browser - schema caching is handled by Supabase
+  return Promise.resolve()
 }
