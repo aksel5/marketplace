@@ -43,22 +43,22 @@ export const ensureSchemaReady = async (maxRetries = 5) => {
       console.log(`Refreshing schema cache (attempt ${attempt}/${maxRetries})...`)
       await refreshSchemaCache()
       
-      // Verify the video_url column exists by checking information_schema
+      // Verify the video column exists by checking information_schema
       const { data: columnCheck, error: columnError } = await supabase
         .rpc('check_column_exists', {
           table_name: 'products',
-          column_name: 'video_url'
+          column_name: 'video'
         })
       
       if (columnError) {
         // Fallback method if RPC doesn't exist
         const { data, error: queryError } = await supabase
           .from('products')
-          .select('video_url')
+          .select('video')
           .limit(1)
           
         if (queryError) {
-          if (queryError.message.includes('video_url') || queryError.message.includes('column')) {
+          if (queryError.message.includes('video') || queryError.message.includes('column')) {
             console.log(`Video column not yet available (attempt ${attempt})`)
             await new Promise(resolve => setTimeout(resolve, 1500)) // Wait 1.5 seconds
             continue
@@ -71,7 +71,7 @@ export const ensureSchemaReady = async (maxRetries = 5) => {
         continue
       }
       
-      console.log('Schema verified successfully - video_url column is available')
+      console.log('Schema verified successfully - video column is available')
       return true
       
     } catch (error) {
@@ -89,7 +89,7 @@ export const createCheckColumnFunction = async () => {
   try {
     const { error } = await supabase.rpc('check_column_exists', {
       table_name: 'products',
-      column_name: 'video_url'
+      column_name: 'video'
     })
     
     if (error && error.message.includes('function')) {
